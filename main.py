@@ -16,15 +16,17 @@ class Road(BaseModel):
     y1 = IntegerField()
     x2 = IntegerField()
     y2 = IntegerField()
-    lanes = IntegerField(default=2)
+    lanes = IntegerField(default=1)
     covering = IntegerField(default=0)
     parallel = ForeignKeyField('self', null=True, default=None)
 
     @classmethod
     def seed(cls):
         dictionary = [
-            {'x1': 0, 'y1': 0, 'x2': 300, 'y2': 0},
-            {'x1': 0, 'y1': 0, 'x2': 300, 'y2': 300},
+            {'x1': 0, 'y1': 0, 'x2': 70, 'y2': 65},
+            {'x1': 70, 'y1': 65, 'x2': 0, 'y2': 0},
+            {'x1': 0, 'y1': 0, 'x2': 40, 'y2': 100},
+            {'x1': 40, 'y1': 100, 'x2': 0, 'y2': 100},
             {'x1': 300, 'y1': 300, 'x2': 600, 'y2': 600},
             {'x1': 600, 'y1': 0, 'x2': 300, 'y2': 300},
             {'x1': 300, 'y1': 300, 'x2': 0, 'y2': 600},
@@ -48,6 +50,18 @@ class Road(BaseModel):
 
         Road.insert_many(dictionary).execute()
         print("road created")
+
+    @classmethod
+    def new(cls, x1, y1, x2, y2, lanes=None, covering=None, has_parallel=False):
+        if has_parallel:
+            dictionary = [
+                {'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2, 'lanes': lanes, 'covering': covering},
+                {'x1': x2, 'y1': y2, 'x2': x1, 'y2': y1, 'lanes': lanes, 'covering': covering},
+            ]
+
+            Road.insert_many(dictionary).execute()
+        else:
+            Road.create(x1=x1, y1=y1, x2=x2, y2=y2, lanes=lanes, covering=covering)
 
 
 db.connect()
