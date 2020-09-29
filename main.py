@@ -20,6 +20,7 @@ class Road(BaseModel):
     covering = IntegerField(default=0)
     parallel = ForeignKeyField('self', null=True, default=None)
 
+    # for first launch
     @classmethod
     def seed(cls):
         dictionary = [
@@ -68,3 +69,7 @@ db.connect()
 db.create_tables([Road])
 
 Road.seed()
+
+# roads = Road.select()
+# for road in roads:
+#     print(road.x1)
