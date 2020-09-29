@@ -17,16 +17,17 @@ class Road(BaseModel):
     x2 = IntegerField()
     y2 = IntegerField()
     lanes = IntegerField(default=2)
+    covering = IntegerField(default=0)
     parallel = ForeignKeyField('self', null=True, default=None)
     following = ForeignKeyField('self', null=True, default=None)
 
     @classmethod
     def seed(cls):
         dictionary = [
-            {'id': 1, 'x1': 0, 'y1': 0, 'x2': 300, 'y2': 300, 'following': 2},
-            {'id': 2, 'x1': 300, 'y1': 300, 'x2': 600, 'y2': 600},
-            {'id': 3, 'x1': 600, 'y1': 0, 'x2': 300, 'y2': 300, 'following': 4},
-            {'id': 4, 'x1': 300, 'y1': 300, 'x2': 0, 'y2': 600},
+            {'x1': 0, 'y1': 0, 'x2': 300, 'y2': 300},
+            {'x1': 300, 'y1': 300, 'x2': 600, 'y2': 600},
+            {'x1': 600, 'y1': 0, 'x2': 300, 'y2': 300},
+            {'x1': 300, 'y1': 300, 'x2': 0, 'y2': 600},
         ]
 
         with db.atomic():
