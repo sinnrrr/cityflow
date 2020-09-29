@@ -52,16 +52,16 @@ class Road(BaseModel):
         print("road created")
 
     @classmethod
-    def new(cls, x1, y1, x2, y2, lanes=None, covering=None, has_parallel=False):
-        if has_parallel:
-            dictionary = [
-                {'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2, 'lanes': lanes, 'covering': covering},
-                {'x1': x2, 'y1': y2, 'x2': x1, 'y2': y1, 'lanes': lanes, 'covering': covering},
-            ]
+    def new(cls, *dictionary):
+        if len(dictionary) > 1:
+            for road in dictionary:
+                if road.has_parallel:
+                    parallel_road = {'x1': x2, 'y1':  y2, 'x2': x1, 'y2': y1}
+                    dictionary.append(parallel_road)
 
             Road.insert_many(dictionary).execute()
         else:
-            Road.create(x1=x1, y1=y1, x2=x2, y2=y2, lanes=lanes, covering=covering)
+            Road.create(dictionary)
 
 
 db.connect()
