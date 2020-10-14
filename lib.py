@@ -15,10 +15,10 @@ class Road(BaseModel):
     y1 = IntegerField()
     x2 = IntegerField()
     y2 = IntegerField()
-    lr = IntegerField(default=30)
-    lg = IntegerField(default=30)
-    lt = IntegerField(default=0)
-    lv = BooleanField(default=True)
+
+    red = IntegerField(default=30)
+    green = IntegerField(default=30)
+    tick = IntegerField(default=0)
 
     level = IntegerField(default=0)
     lanes = IntegerField(default=1)
@@ -28,8 +28,8 @@ class Road(BaseModel):
     @classmethod
     def seed(cls):
         dictionary = [
-            {"x1": 0, "y1": 0, "x2": 200, "y2": 0, "covering": 0},
-            {"x1": 0, "y1": 50, "x2": 0, "y2": 0, "covering": 0},
+            {"x1": 0, "y1": 0, "x2": 200, "y2": 0, "covering": 0, "red": 90, "green": 30},
+            {"x1": 0, "y1": 50, "x2": 0, "y2": 0, "covering": 0, "red": 90, "green": 30},
             {"x1": 200, "y1": 0, "x2": 200, "y2": 50, "covering": 0}
         ]
 

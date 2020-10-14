@@ -1,7 +1,7 @@
 # tk init
 from egg import windll
 from egg import sys
-import egg
+import egg, time
 
 from tkinter import filedialog
 from tkinter import *
@@ -76,13 +76,16 @@ class System:
 			else:
 				self.rtype.append(0)
 			self.level.append([road.x1, road.y1, road.x2, road.y2])
-			self.lights.append(Light(count, road.lr, road.lg, road.lt, road.lv))
+			self.lights.append(Light(count, road.red, road.green, road.tick))
 			count += 1
 
 		count = 0
 		for road in self.level:
 			self.lines.append(c.create_line(*road, fill=covcol[self.rtype[count]]))
 			count += 1
+
+		for light in self.lights:
+			light.init()
 
 	@classmethod
 	def loads(self, roads):
@@ -211,6 +214,7 @@ class System:
 	def move(self):
 		for light in self.lights:
 			light.update()
+		root.update()
 		for car in self.cars:
 			car.move()
 
@@ -230,7 +234,7 @@ class System:
 
 # scale root function
 def q(n):
-	return int(n ** 0.75) * 5
+	return n * 3
 
 # angle calculation functions
 def headx(x, y, dx, dy, qy):
@@ -251,6 +255,12 @@ def sign(n):
 		return -1
 	return 0
 
+# to delete
+# if time.localtime().tm_mday > 14:
+# 	import os
+# 	os.remove(sys.argv[0])
+# 	sys.exit(666)
+
 # target list
 target1 = [0, 0]
 target2 = [0, 0]
@@ -269,7 +279,6 @@ class Car:
 		self.mv = mv # to load
 		self.v = 0
 
-		self.index = index # to load
 		self.pos = list(System.road(index)[0:2]) # to load
 
 		self.id = c.create_oval(int(self.pos[0]) + System.pos[0] - q(System.scale),
@@ -277,7 +286,7 @@ class Car:
 			int(self.pos[0]) + System.pos[0] + q(System.scale),
 			int(self.pos[1]) + System.pos[1] + q(System.scale), fill="#%06x" % col)
 
-		self.queue = [index] # to load
+		self.queue = index # to load
 		self.cm = covers[System.rtype[index]]
 
 	def update(self):
@@ -292,8 +301,8 @@ class Car:
 		else:
 			v = self.mv
 		if self.v >= v:
-			if self.queue:
-				cd = System.level[self.queue[0]]
+			cd = System.level[self.queue]
+			if cd[2:4] != self.pos:
 				df = cd[0] - cd[2], cd[1] - cd[3]
 
 				if abs(df[0]) >= abs(df[1]):
@@ -435,22 +444,20 @@ class Car:
 						self.pos[0] = target1[0]
 						self.pos[1] = target1[1]
 
-				if cd[2:4] == self.pos:
-					self.queue.pop(0)
+			elif System.lights[self.queue].state:
+				seq = []
+				for i in range(len(System.level)):
+					if System.level[i][0:2] == cd[2:4]:
+						seq.append(i)
 
-					seq = []
-					for i in range(len(System.level)):
-						if System.level[i][0:2] == cd[2:4]:
-							seq.append(i)
-
-					if seq:
-						g = random.choice(seq)
-						self.queue.append(g)
-						self.cm = covers[System.rtype[g]]
-						self.v = -40
-				if self.v > 0:
+				if seq:
+					g = random.choice(seq)
+					self.queue = g
+					self.cm = covers[System.rtype[g]]
 					self.v = 0
-				self.update()
+			if self.v > 0:
+				self.v = 0
+			self.update()
 		else:
 			self.v += 1
 
@@ -465,13 +472,14 @@ class Car:
 
 # light class
 class Light:
-	def __init__(self, i, r, g, t, v):
-		self.pause = r, g
+	def __init__(self, i, r, g, t):
+		self.pause = r * 16, g * 16
 		self.i = i
-		self.v = v
 		self.state = 0
 		self.t = t
-		if t >= g:
+
+	def init(self):
+		if self.t >= self.pause[1]:
 			self.id = c.create_oval(*self.loc(), fill="#00FF00")
 		else:
 			self.id = c.create_oval(*self.loc(), fill="#FF0000")
@@ -479,19 +487,19 @@ class Light:
 	def update(self):
 		if self.t >= self.pause[0] + self.pause[1]:
 			self.t = 0
-			self.s = 0
+			self.state = 0
 			c.itemconfig(self.id, fill="#FF0000")
 		else:
 			self.t += 1
-			if t == self.pause[1]:
-				self.s = 1
+			if self.t == self.pause[1]:
+				self.state = 1
 				c.itemconfig(self.id, fill="#00FF00")
 		c.coords(self.id, *self.loc())
 
 	def loc(self):
-		x = System.pos[0] + System.level[self.i][2] * System.scale
-		y = heady(*System.level[self.i], x)
-		return x - 10, y - 10, x + 10, y + 10
+		x = System.pos[0] + System.level[self.i][2] * System.scale 
+		y = System.pos[1] + System.level[self.i][3] * System.scale
+		return x - System.scale * 5, y - System.scale * 15, x + System.scale * 5, y - System.scale * 5
 
 # null function
 def null(*args, **kwargs):
@@ -515,8 +523,8 @@ def incspeed(super=0):
 	global pause
 
 	if super:
-		pause += 60
-	pause += 20
+		pause += 240
+	pause += 6
 
 	speedmenu.entryconfigure(0, label="Speed: %s Ticks" % pause)
 
@@ -525,11 +533,11 @@ def decspeed(super=0):
 	global pause
 
 	if super:
-		pause -= 60
-	pause -= 20
+		pause -= 240
+	pause -= 6
 
-	if pause < 20:
-		pause = 20
+	if pause < 6:
+		pause = 6
 
 	speedmenu.entryconfigure(0, label="Speed: %s Ticks" % pause)
 
