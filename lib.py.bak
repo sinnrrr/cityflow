@@ -1,11 +1,13 @@
 from peewee import *
 import os
 
-db = SqliteDatabase(None)
+dbname = "tournament.db"
+db = SqliteDatabase(dbname)
 
 class BaseModel(Model):
     class Meta:
         database = db
+
 
 class Road(BaseModel):
     class Meta:
@@ -15,11 +17,6 @@ class Road(BaseModel):
     y1 = IntegerField()
     x2 = IntegerField()
     y2 = IntegerField()
-    lr = IntegerField(default=30)
-    lg = IntegerField(default=30)
-    lt = IntegerField(default=0)
-    lv = BooleanField(default=True)
-
     level = IntegerField(default=0)
     lanes = IntegerField(default=1)
     covering = IntegerField(default=0)
@@ -28,9 +25,12 @@ class Road(BaseModel):
     @classmethod
     def seed(cls):
         dictionary = [
-            {"x1": 0, "y1": 0, "x2": 200, "y2": 0, "covering": 0},
-            {"x1": 0, "y1": 50, "x2": 0, "y2": 0, "covering": 0},
-            {"x1": 200, "y1": 0, "x2": 200, "y2": 50, "covering": 0}
+            {"x1": 0, "y1": 0, "x2": 300, "y2": 0, "covering": 1},
+            {"x1": 300, "y1": 0, "x2": 300, "y2": 300, "covering": 4},
+            {"x1": 300, "y1": 300, "x2": 0, "y2": 300, "covering": 3},
+            {"x1": 0, "y1": 300, "x2": 0, "y2": 0, "covering": 0},
+            {"x1": 0, "y1": 300, "x2": 300, "y2": 0, "covering": 2},
+            {"x1": 300, "y1": 0, "x2": 0, "y2": 300, "covering": 2}
         ]
 
         with db.atomic():
@@ -40,9 +40,9 @@ class Road(BaseModel):
             print("roads seeded")
 
     @classmethod
-    def load(cls, dc):
+    def empty(cls):
         with db.atomic():
-            for data in dc:
+            for data in {}:
                 Road.get_or_create(**data)
 
     @classmethod
@@ -70,33 +70,11 @@ class Road(BaseModel):
         else:
             Road.create(dictionary)
 
-def saveFile(name, level, rtype):
-    if os.path.isfile(name):
-        os.remove(name)
-    db.init(name)
-    db.connect()
-    db.create_tables([Road])
-    data = []
-    count = 0
-    for t in level:
-        data.append({"x1": t[0], "y1": t[1], "x2": t[2], "y2": t[3], "covering": rtype[count]})
-        count += 1
-    Road.load(data)
-    db.close()
 
-def loadFile(name):
-    db.init(name)
-    db.connect()
-    db.create_tables([Road])
-    data = Road.select()
-    db.close()
-    return list(data)
+try:
+    os.remove(dbname)
+except:
+    pass
 
-if __name__ == "__main__":
-    if os.path.isfile("tour.db"):
-        os.remove("tour.db")
-    db.init("tour.db")
-    db.connect()
-    db.create_tables([Road])
-    Road.seed()
-    db.close()
+db.connect()
+db.create_tables([Road])
