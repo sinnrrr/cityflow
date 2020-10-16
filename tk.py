@@ -709,6 +709,14 @@ def stop_time():
 # time functions
 def resume_time():
     Settings.is_moving = True
+    
+
+# screenshot
+def take_screenshot():
+	canvas.postscript(file="dump.ps", colormode="color")
+	process = subprocess.Popen(["ps2pdf", "dump.ps", "screenshot.pdf"], shell=True)
+	process.wait()
+	os.remove("dump.ps")
 
 
 speed_menu = Menu(menu, tearoff=0)
@@ -757,6 +765,7 @@ menu.add_command(label="File", command=System.open_db_file)
 menu.add_cascade(label="Speed", menu=speed_menu)
 menu.add_cascade(label="Cars", menu=car_menu)
 menu.add_cascade(label="Triggers", menu=trigger_menu)
+menu.add_command(label="Screenshot", command=take_screenshot)
 menu.add_command(label="FullScreen", command=set_fullscreen)
 menu.add_command(label="Exit", command=terminate)
 
