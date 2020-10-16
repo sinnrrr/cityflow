@@ -23,7 +23,7 @@ if len(sys.argv) > 1:
 root.geometry("1024x576")
 root.resizable(0, 0)
 
-c = Canvas(root, width=1024, height=576, highlightthickness=0)
+c = Canvas(root, width=1024, height=576)
 clock = Clock()
 
 pause = 240
@@ -33,21 +33,33 @@ FULLSCREEN = 0
 MOVE = 1
 
 covers = {
-	0: 0,
-	1: 1,
-	2: 3,
-	3: 6,
-	4: 10,
-	5: 15
+	0: 2,
+	1: 3,
+	2: 5,
+	3: 8,
+	4: 12,
+	5: 17
 }
 covcol = {
-	0: "#000000",
+	0: "#404040",
 	1: "#FF0000",
 	2: "#FF8000",
-	3: "#FFFF00",
-	4: "#80FF20",
-	5: "#00FF00"
+	3: "#E0E000",
+	4: "#70E020",
+	5: "#00E000"
 }
+
+# highlight covcol
+def high(color):
+	d = {
+		"#404040": "#808080",
+		"#FF0000": "#FF4040",
+		"#FF8000": "#FFB0B0",
+		"#E0E000": "#FFFF00",
+		"#70E020": "#90FF40",
+		"#00E000": "#00FF00"
+	}
+	return d[color]
 
 # system object
 class System:
@@ -55,6 +67,9 @@ class System:
 	rtype = []
 
 	pos = [0, 0]
+	off = [0, 0]
+
+	mpos = [0, 0]
 
 	scale = 1.0
 	lines = []
@@ -63,29 +78,72 @@ class System:
 	currentFile = None
 
 	lights = []
+	triggers = []
+	lanes = []
+	locks = []
+	spawn = []
 
 	@classmethod
 	def load(self, db):
 		roads = lib.loadFile(db)
 		self.new()
 
+		carry = {}
 		count = 0
+
+		self.minx, self.miny, self.maxx, self.maxy = 2147483647, 2147483647, 0, 0
+
 		for road in roads:
 			if road.covering in covers:
 				self.rtype.append(road.covering)
 			else:
 				self.rtype.append(0)
+			try:
+				carry[tuple({(road.x1, road.y1), (road.x2, road.y2)})] += road.lanes
+			except:
+				carry[tuple({(road.x1, road.y1), (road.x2, road.y2)})] = road.lanes
+
 			self.level.append([road.x1, road.y1, road.x2, road.y2])
+			self.lanes.append(road.lanes)
+			self.spawn.append(road.spawn)
 			self.lights.append(Light(count, road.red, road.green, road.tick))
+
+			if road.x1 < self.minx:
+				self.minx = road.x1
+			elif road.x2 < self.minx:
+				self.minx = road.x2
+			if road.y1 < self.miny:
+				self.miny = road.y1
+			elif road.y2 < self.miny:
+				self.miny = road.y2
+
+			if road.x1 > self.maxx:
+				self.maxx = road.x1
+			elif road.x2 > self.maxx:
+				self.maxx = road.x2
+			if road.y1 > self.maxy:
+				self.maxy = road.y1
+			elif road.y2 > self.maxy:
+				self.maxy = road.y2
 			count += 1
 
 		count = 0
+		self.locks.clear()
 		for road in self.level:
-			self.lines.append(c.create_line(*road, fill=covcol[self.rtype[count]]))
+			w = carry[tuple({(road[0], road[1]), (road[2], road[3])})]
+			o = c.create_line(*road, fill=covcol[self.rtype[count]], width=w, activefill=high(covcol[self.rtype[count]]))
+			exec("c.tag_bind(o, \"<Button-1>\", lambda e: lock(%s, %s))" % (count, o), {"c": c, "o": o, "lock": lock})
+			self.lines.append(o)
+			self.locks.append(0)
 			count += 1
+
+		for trigger in lib.Trigger.select():
+			self.triggers.append(Exe(trigger.name, trigger.ints))
 
 		for light in self.lights:
 			light.init()
+
+		self.home(None)
 
 	@classmethod
 	def loads(self, roads):
@@ -106,7 +164,7 @@ class System:
 	@classmethod
 	def update(self):
 		for i in range(len(self.lines)):
-			c.coords(self.lines[i], *self.road(i))
+		 	c.coords(self.lines[i], *self.road(i))
 		self.place(*self.pos)
 
 	@classmethod
@@ -114,6 +172,7 @@ class System:
 		for i in range(len(self.lines)):
 			c.coords(self.lines[i], *self.road(i))
 		self.pos = [0, 0]
+		self.update()
 
 	@classmethod
 	def press(self, evt):
@@ -136,19 +195,19 @@ class System:
 	@classmethod
 	def down(self, evt):
 		self.scale /= 1.2
-		self.mpos = evt.x - self.pos[0], evt.y - self.pos[1]
+		self.mpos = evt.x // System.scale, evt.y // System.scale
 		self.update()
 
 	@classmethod
 	def up(self, evt):
 		self.scale *= 1.2
-		self.mpos = evt.x - self.pos[0], evt.y - self.pos[1]
+		self.mpos = evt.x // System.scale, evt.y // System.scale
 		self.update()
 
 	@classmethod
 	def reset(self, evt):
 		self.scale = 1
-		self.mpos = evt.x - self.pos[0], evt.y - self.pos[1]
+		self.mpos = evt.x // System.scale, evt.y // System.scale
 		self.update()
 
 	@classmethod
@@ -177,10 +236,17 @@ class System:
 		self.clearcar()
 		for road in self.lines:
 			c.delete(road)
+		for light in self.lights:
+			c.delete(light.id)
 		self.lines = []
 		self.level = []
 		self.rtype = []
 		self.lights = []
+		self.lanes = []
+		self.spawn = []
+		for trigger in self.triggers:
+			tm.delete(0)
+		self.triggers = []
 
 	@classmethod
 	def open(self):
@@ -220,11 +286,34 @@ class System:
 
 	@classmethod
 	def randcar(self):
-		if self.level:
-			road = random.randrange(len(self.level))
-			speed = random.randint(16, 36)
+		seq = []
+		for road in range(len(self.level)):
+			print(self.spawn[road])
+			if self.spawn[road]:
+				seq.append(road)
+
+		if seq:
+			road = random.choice(seq)
+			speed = random.randint(6, 20)
 
 			self.cars.append(Car(road, speed, colconv[selcolor.get()]))
+
+	@classmethod
+	def spawncar(self):
+		mem = System.scale
+		System.scale = 1
+
+		seq = []
+		for road in range(len(self.level)):
+			if self.spawn[road]:
+				seq.append(road)
+
+		if seq:
+			road = random.choice(seq)
+			speed = random.randint(6, 21)
+
+			self.cars.append(Car(road, speed, colconv[random.randrange(16)]))
+		System.scale = mem
 
 	@classmethod
 	def clearcar(self):
@@ -255,11 +344,17 @@ def sign(n):
 		return -1
 	return 0
 
-# to delete
-# if time.localtime().tm_mday > 14:
-# 	import os
-# 	os.remove(sys.argv[0])
-# 	sys.exit(666)
+# set lock to road
+def lock(i, o=None):
+	System.locks[i] = not System.locks[i]
+
+	if not o:
+		o = System.lines[i]
+
+	if System.locks[i]:
+		c.itemconfig(o, dash=[8, 8])
+	else:
+		c.itemconfig(o, dash=[])
 
 # target list
 target1 = [0, 0]
@@ -277,6 +372,7 @@ targeta = [0, 0]
 class Car:
 	def __init__(self, index, mv, col):
 		self.mv = mv # to load
+		self.l = 0
 		self.v = 0
 
 		self.pos = list(System.road(index)[0:2]) # to load
@@ -340,40 +436,44 @@ class Car:
 					for car in System.cars:
 						if car == self:
 							continue
-						if car.pos == target1:
-							m = 0
-							break
-						elif car.pos == target2:
-							m = 0
-							break
-						elif car.pos == target3:
-							m = 0
-							break
-						elif car.pos == target4:
-							m = 0
-							break
-						elif car.pos == target5:
-							m = 0
-							break
-						elif car.pos == target6:
-							m = 0
-							break
-						elif car.pos == target7:
-							m = 0
-							break
-						elif car.pos == target8:
-							m = 0
-							break
-						elif car.pos == target9:
-							m = 0
-							break
-						elif car.pos == targeta:
-							m = 0
-							break
+						if car.queue == self.queue and car.l == self.l:
+							if car.pos == target1:
+								m = 0
+								break
+							elif car.pos == target2:
+								m = 0
+								break
+							elif car.pos == target3:
+								m = 0
+								break
+							elif car.pos == target4:
+								m = 0
+								break
+							elif car.pos == target5:
+								m = 0
+								break
+							elif car.pos == target6:
+								m = 0
+								break
+							elif car.pos == target7:
+								m = 0
+								break
+							elif car.pos == target8:
+								m = 0
+								break
+							elif car.pos == target9:
+								m = 0
+								break
+							elif car.pos == targeta:
+								m = 0
+								break
 
 					if m:
 						self.pos[0] = target1[0]
 						self.pos[1] = target1[1]
+					else:
+						self.l = (self.l + 1) % System.lanes[self.queue]
+
 				else:
 					target1[1] = self.pos[1] - sign(df[1])
 					target1[0] = headx(*cd, target1[1])
@@ -409,50 +509,54 @@ class Car:
 					for car in System.cars:
 						if car == self:
 							continue
-						if car.pos == target1:
-							m = 0
-							break
-						elif car.pos == target2:
-							m = 0
-							break
-						elif car.pos == target3:
-							m = 0
-							break
-						elif car.pos == target4:
-							m = 0
-							break
-						elif car.pos == target5:
-							m = 0
-							break
-						elif car.pos == target6:
-							m = 0
-							break
-						elif car.pos == target7:
-							m = 0
-							break
-						elif car.pos == target8:
-							m = 0
-							break
-						elif car.pos == target9:
-							m = 0
-							break
-						elif car.pos == targeta:
-							m = 0
-							break
+						if car.queue == self.queue and car.l == self.l:
+							if car.pos == target1:
+								m = 0
+								break
+							elif car.pos == target2:
+								m = 0
+								break
+							elif car.pos == target3:
+								m = 0
+								break
+							elif car.pos == target4:
+								m = 0
+								break
+							elif car.pos == target5:
+								m = 0
+								break
+							elif car.pos == target6:
+								m = 0
+								break
+							elif car.pos == target7:
+								m = 0
+								break
+							elif car.pos == target8:
+								m = 0
+								break
+							elif car.pos == target9:
+								m = 0
+								break
+							elif car.pos == targeta:
+								m = 0
+								break
 
 					if m:
 						self.pos[0] = target1[0]
 						self.pos[1] = target1[1]
+					else:
+						self.l = (self.l + 1) % System.lanes[self.queue]
 
 			elif System.lights[self.queue].state:
 				seq = []
 				for i in range(len(System.level)):
-					if System.level[i][0:2] == cd[2:4]:
+					if System.level[i][0:2] == cd[2:4] and System.locks[i] == 0:
 						seq.append(i)
 
 				if seq:
 					g = random.choice(seq)
 					self.queue = g
+					self.l = 0
 					self.cm = covers[System.rtype[g]]
 					self.v = 0
 			if self.v > 0:
@@ -499,7 +603,41 @@ class Light:
 	def loc(self):
 		x = System.pos[0] + System.level[self.i][2] * System.scale 
 		y = System.pos[1] + System.level[self.i][3] * System.scale
-		return x - System.scale * 5, y - System.scale * 15, x + System.scale * 5, y - System.scale * 5
+		return x - System.scale * 5, y - System.scale * 5, x + System.scale * 5, y + System.scale * 5
+
+# menu
+menu = Menu(root)
+tm = Menu(menu, tearoff=0)
+
+# trigger class
+class Exe:
+	def __init__(self, name, ints):
+		self.ints = ints.split(", ")
+		tm.add_command(label=name, command=self.run)
+	def run(self):
+		for line in self.ints:
+			line = line.split()
+			if line[0] == "clear":
+				System.clearcar()
+			elif line[0] == "spawncars":
+				for i in range(int(line[1])):
+					System.spawncar()
+			elif line[0] == "scale":
+				System.scale = float(line[1])
+				System.update()
+			elif line[0] == "delay":
+				time.sleep(int(line[1]) / 1000)
+			elif line[0] == "timestop":
+				timestop()
+			elif line[0] == "continue":
+				timeresume()
+			elif line[0] == "speed":
+				global pause
+				pause = int(line[1])
+			elif line[0] == "lock":
+				lock()
+			elif line[0] == "move":
+				System.place(int(line[1]), int(line[2]))
 
 # null function
 def null(*args, **kwargs):
@@ -523,8 +661,8 @@ def incspeed(super=0):
 	global pause
 
 	if super:
-		pause += 240
-	pause += 6
+		pause += 90
+	pause += 30
 
 	speedmenu.entryconfigure(0, label="Speed: %s Ticks" % pause)
 
@@ -533,11 +671,11 @@ def decspeed(super=0):
 	global pause
 
 	if super:
-		pause -= 240
-	pause -= 6
+		pause -= 90
+	pause -= 30
 
-	if pause < 6:
-		pause = 6
+	if pause < 10:
+		pause = 10
 
 	speedmenu.entryconfigure(0, label="Speed: %s Ticks" % pause)
 
@@ -560,13 +698,12 @@ def timeresume():
 	MOVE = 1
 
 # main loop setup
-menu = Menu(root)
 
-filemenu = Menu(menu, tearoff=0)
-filemenu.add_command(label="New", command=System.new)
-filemenu.add_command(label="Open", command=System.open)
-filemenu.add_command(label="Save", command=System.save)
-filemenu.add_command(label="Save As", command=System.saveas)
+# filemenu = Menu(menu, tearoff=0)
+# filemenu.add_command(label="New", command=System.new)
+# filemenu.add_command(label="Open", command=System.open)
+# filemenu.add_command(label="Save", command=System.save)
+# filemenu.add_command(label="Save As", command=System.saveas)
 
 speedmenu = Menu(menu, tearoff=0)
 speedmenu.add_command(label="Speed: 240 Ticks")
@@ -605,10 +742,11 @@ carmenu.add_separator()
 carmenu.add_command(label="Add Car", command=System.randcar)
 carmenu.add_command(label="Remove All Cars", command=System.clearcar)
 
-menu.add_cascade(label="File", menu=filemenu)
+menu.add_command(label="File", command=System.open)
 menu.add_cascade(label="Speed", menu=speedmenu)
 menu.add_cascade(label="Cars", menu=carmenu)
-menu.add_command(label="Fullscreen", command=setFullscreen)
+menu.add_cascade(label="Triggers", menu=tm)
+menu.add_command(label="FullScreen", command=setFullscreen)
 menu.add_command(label="Exit", command=terminate)
 
 root.bind_all("<Prior>", System.up)
