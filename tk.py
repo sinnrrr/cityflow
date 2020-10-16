@@ -1,7 +1,6 @@
 # tk init
-from egg import windll
-from egg import sys
-import egg, time
+# from ctypes import windll
+import sys, os, time
 
 from tkinter import filedialog
 from tkinter import *
@@ -257,7 +256,8 @@ class System:
 				self.load(path)
 				self.currentFile = path
 			except:
-				windll.user32.MessageBoxW(0, "File %s does not exist" % path, "Oops!", 0x10)
+				tkinter.messagebox.showerror(title="Oops!", message="File %s does not exist" % path)
+				#windll.user32.MessageBoxW(0, "File %s does not exist" % path, "Oops!", 0x10)
 
 	@classmethod
 	def save(self):
@@ -265,7 +265,8 @@ class System:
 			try:
 				lib.saveFile(self.currentFile, self.level, self.rtype)
 			except:
-				windll.user32.MessageBoxW(0, "Couldn't write to file %s" % self.currentFile, "Oops!", 0x10)
+				tkinter.messagebox.showerror(title="Oops!", message="Couldn't write to file %s" % self.currentFile)
+				#windll.user32.MessageBoxW(0, "Couldn't write to file %s" % self.currentFile, "Oops!", 0x10)
 
 	@classmethod
 	def saveas(self):
@@ -274,7 +275,8 @@ class System:
 			try:
 				lib.saveFile(path, self.level, self.rtype)
 			except:
-				windll.user32.MessageBoxW(0, "Couldn't write to file %s" % path, "Oops!", 0x10)
+				tkinter.messagebox.showerror(title="Oops!", message="Couldn't write to file %s" % path)
+				#windll.user32.MessageBoxW(0, "Couldn't write to file %s" % path, "Oops!", 0x10)
 
 	@classmethod
 	def move(self):
@@ -288,7 +290,6 @@ class System:
 	def randcar(self):
 		seq = []
 		for road in range(len(self.level)):
-			print(self.spawn[road])
 			if self.spawn[road]:
 				seq.append(road)
 
@@ -635,9 +636,7 @@ class Exe:
 				global pause
 				pause = int(line[1])
 			elif line[0] == "lock":
-				lock()
-			elif line[0] == "move":
-				System.place(int(line[1]), int(line[2]))
+				lock(int(line[1]))
 
 # null function
 def null(*args, **kwargs):

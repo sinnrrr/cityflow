@@ -83,7 +83,7 @@ class Trigger(BaseModel):
     @classmethod
     def seed(self):
         with db.atomic():
-            Trigger.get_or_create(name="Move Right", ints="move 20 0")
+            Trigger.get_or_create(name="TEST", ints="lock 0")
 
     @classmethod
     def load(self, texts):
