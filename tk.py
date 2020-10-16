@@ -52,7 +52,7 @@ covcol = {
 def high(color):
 	d = {
 		"#404040": "#808080",
-		"#FF0000": "#FF4040",
+		"#FF0000": "#FF8080",
 		"#FF8000": "#FFB0B0",
 		"#E0E000": "#FFFF00",
 		"#70E020": "#90FF40",
@@ -290,7 +290,7 @@ class System:
 	def randcar(self):
 		mem = System.scale
 		System.scale = 1
-		
+
 		seq = []
 		for road in range(len(self.level)):
 			if self.spawn[road]:
