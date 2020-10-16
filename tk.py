@@ -288,6 +288,9 @@ class System:
 
 	@classmethod
 	def randcar(self):
+		mem = System.scale
+		System.scale = 1
+		
 		seq = []
 		for road in range(len(self.level)):
 			if self.spawn[road]:
@@ -298,6 +301,7 @@ class System:
 			speed = random.randint(6, 20)
 
 			self.cars.append(Car(road, speed, colconv[selcolor.get()]))
+		System.scale = mem
 
 	@classmethod
 	def spawncar(self):
@@ -759,9 +763,9 @@ root.bind_all("<B1-Motion>", System.bmotion)
 
 c.pack()
 # ============================
-System.load("tour.db")
-System.cars.append(Car(0, 20, 0xffffff))
-System.cars.append(Car(1, 10, 0x000000))
+# System.load("tour.db")
+# System.cars.append(Car(0, 20, 0xffffff))
+# System.cars.append(Car(1, 10, 0x000000))
 # ============================
 
 def loop():
