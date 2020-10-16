@@ -763,7 +763,8 @@ root.bind_all("<B1-Motion>", System.bmotion)
 
 c.pack()
 # ============================
-# System.load("tour.db")
+if path:
+	System.load(path)
 # System.cars.append(Car(0, 20, 0xffffff))
 # System.cars.append(Car(1, 10, 0x000000))
 # ============================
