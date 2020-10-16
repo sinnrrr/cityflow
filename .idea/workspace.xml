@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="BranchesTreeState">
+    <expand>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="GROUP_NODE:origin" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </expand>
+    <select />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="763e1127-56f3-41e9-9457-f4f13a65ae3d" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.env" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tk.py" beforeDir="false" afterPath="$PROJECT_DIR$/tk.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="JupyterTrust" id="db68509f-95b9-47aa-a505-3ce857555b45" />
+  <component name="ProjectId" id="1hxyDCDm7OMKcyLl869z4dbjQv0" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+  </component>
+  <component name="RunManager">
+    <configuration name="db" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="tournament" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/db.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="763e1127-56f3-41e9-9457-f4f13a65ae3d" name="Default Changelist" comment="" />
+      <created>1600966916069</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1600966916069</updated>
+      <workItem from="1600966917098" duration="4488000" />
+      <workItem from="1601297210735" duration="3276000" />
+      <workItem from="1601306080131" duration="98000" />
+      <workItem from="1601384559982" duration="9000" />
+      <workItem from="1601390454037" duration="5935000" />
+      <workItem from="1601398305010" duration="2530000" />
+      <workItem from="1602599093521" duration="1697000" />
+      <workItem from="1602829302349" duration="19000" />
+      <workItem from="1602829326918" duration="114000" />
+      <workItem from="1602829442699" duration="11216000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="698" y="343" width="513" height="389" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1602831439373">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state x="698" y="343" width="513" height="389" key="#com.intellij.fileTypes.FileTypeChooser/0.0.1920.1080@0.0.1920.1080" timestamp="1602831439373" />
+    <state x="743" y="298" width="424" height="480" key="FileChooserDialogImpl" timestamp="1602599189875">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state x="743" y="298" width="424" height="480" key="FileChooserDialogImpl/0.0.1920.1080@0.0.1920.1080" timestamp="1602599189875" />
+    <state width="918" height="503" key="GridCell.Tab.0.bottom" timestamp="1601197551786">
+      <screen x="0" y="1080" width="1920" height="1080" />
+    </state>
+    <state width="918" height="503" key="GridCell.Tab.0.bottom/0.0.1920.1080/0.1080.1920.1080@0.0.1920.1080" timestamp="1600968547961" />
+    <state width="918" height="503" key="GridCell.Tab.0.bottom/0.0.1920.1080/0.1080.1920.1080@0.1080.1920.1080" timestamp="1601197551786" />
+    <state width="918" height="503" key="GridCell.Tab.0.center" timestamp="1601197551786">
+      <screen x="0" y="1080" width="1920" height="1080" />
+    </state>
+    <state width="918" height="503" key="GridCell.Tab.0.center/0.0.1920.1080/0.1080.1920.1080@0.0.1920.1080" timestamp="1600968547961" />
+    <state width="918" height="503" key="GridCell.Tab.0.center/0.0.1920.1080/0.1080.1920.1080@0.1080.1920.1080" timestamp="1601197551786" />
+    <state width="918" height="503" key="GridCell.Tab.0.left" timestamp="1601197551786">
+      <screen x="0" y="1080" width="1920" height="1080" />
+    </state>
+    <state width="918" height="503" key="GridCell.Tab.0.left/0.0.1920.1080/0.1080.1920.1080@0.0.1920.1080" timestamp="1600968547961" />
+    <state width="918" height="503" key="GridCell.Tab.0.left/0.0.1920.1080/0.1080.1920.1080@0.1080.1920.1080" timestamp="1601197551786" />
+    <state width="918" height="503" key="GridCell.Tab.0.right" timestamp="1601197551786">
+      <screen x="0" y="1080" width="1920" height="1080" />
+    </state>
+    <state width="918" height="503" key="GridCell.Tab.0.right/0.0.1920.1080/0.1080.1920.1080@0.0.1920.1080" timestamp="1600968547961" />
+    <state width="918" height="503" key="GridCell.Tab.0.right/0.0.1920.1080/0.1080.1920.1080@0.1080.1920.1080" timestamp="1601197551786" />
+    <state width="230" height="477" key="HiddenNamespacesPopup" timestamp="1601390690701">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state width="230" height="477" key="HiddenNamespacesPopup/0.0.1920.1080/0.1080.1920.1080@0.0.1920.1080" timestamp="1600969669284" />
+    <state width="230" height="477" key="HiddenNamespacesPopup/0.0.1920.1080@0.0.1920.1080" timestamp="1601390690701" />
+    <state x="623" y="239" width="672" height="678" key="search.everywhere.popup" timestamp="1602840903041">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state x="623" y="239" width="672" height="678" key="search.everywhere.popup/0.0.1920.1080@0.0.1920.1080" timestamp="1602840903041" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/tournament$main.coverage" NAME="main Coverage Results" MODIFIED="1600968524769" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>

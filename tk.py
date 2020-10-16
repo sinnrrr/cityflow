@@ -1,365 +1,372 @@
-# tk init
-# from ctypes import windll
-import sys, os, time
-
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from tkinter import *
-import random, lib
-import threading
+
+from settings import *
 from pygame.time import Clock
 
-root = Tk()
-root.title("App")
+import random
+import time
+import lib
+import os
+import threading
 
-if len(sys.argv) > 1:
-	from os.path import isfile
 
-	if not isfile(sys.argv[1]):
-		sys.exit(1)
+# for Windows only
+def drag_and_attribute():
+    if len(sys.argv) > 1:
+        from os.path import isfile
 
-	path = sys.argv[1]
+        if not isfile(sys.argv[1]):
+            sys.exit(1)
 
-root.geometry("1024x576")
-root.resizable(0, 0)
 
-c = Canvas(root, width=1024, height=576)
-clock = Clock()
+# init root tkinter configuration
+def init():
+    global root, canvas, clock, menu, trigger_menu
+    drag_and_attribute()
 
-pause = 240
+    root = Tk()
+    clock = Clock()
+    canvas = Canvas(
+        root,
+        width=int(os.getenv("TK_WIDTH")),
+        height=int(os.getenv("TK_HEIGHT")),
+    )
 
-TERMINATE = False
-FULLSCREEN = 0
-MOVE = 1
+    menu = Menu(root)
+    trigger_menu = Menu(menu, tearoff=0)
 
-covers = {
-	0: 2,
-	1: 3,
-	2: 5,
-	3: 8,
-	4: 12,
-	5: 17
-}
-covcol = {
-	0: "#404040",
-	1: "#FF0000",
-	2: "#FF8000",
-	3: "#E0E000",
-	4: "#70E020",
-	5: "#00E000"
-}
+    root.title(os.getenv("TK_TITLE"))
+    root.geometry(os.getenv("TK_WIDTH") + "x" + os.getenv("TK_HEIGHT"))
+    root.resizable(int(os.getenv("TK_RESIZABLE_X")), int(os.getenv("TK_RESIZABLE_Y")))
 
-# highlight covcol
-def high(color):
-	d = {
-		"#404040": "#808080",
-		"#FF0000": "#FF4040",
-		"#FF8000": "#FFB0B0",
-		"#E0E000": "#FFFF00",
-		"#70E020": "#90FF40",
-		"#00E000": "#00FF00"
-	}
-	return d[color]
+
+# init root variables
+init()
+
+
+# highlight cover color
+def highlight_color(color):
+    dictionary = Settings.covers.values()
+
+    for value in dictionary:
+        if value[1] == color:
+            return value[2]
+
 
 # system object
 class System:
-	level = []
-	rtype = []
+    cars = []
+    lanes = []
+    lines = []
+    lights = []
+    triggers = []
 
-	pos = [0, 0]
-	off = [0, 0]
+    level = []
+    scale = 1.0
+    road_types = []
+    position = [0, 0]
 
-	mpos = [0, 0]
+    locked_roads = []
+    spawn_positions = []
 
-	scale = 1.0
-	lines = []
+    @classmethod
+    def load_db_file(cls, db):
+        roads = lib.loadFile(db)
+        cls.reset_map()
 
-	cars = []
-	currentFile = None
+        roads_width = {}
+        counter = 0
 
-	lights = []
-	triggers = []
-	lanes = []
-	locks = []
-	spawn = []
+        cls.min_x, cls.min_y, cls.max_x, cls.max_y = 2147483647, 2147483647, 0, 0
 
-	@classmethod
-	def load(self, db):
-		roads = lib.loadFile(db)
-		self.new()
+        for road in roads:
+            if road.covering in Settings.covers:
+                cls.road_types.append(road.covering)
+            else:
+                cls.road_types.append(0)
+            try:
+                roads_width[
+                    tuple({
+                        (road.x1, road.y1),
+                        (road.x2, road.y2),
+                    })
+                ] += road.lanes
+            except:
+                roads_width[
+                    tuple({
+                        (road.x1, road.y1),
+                        (road.x2, road.y2),
+                    })
+                ] = road.lanes
 
-		carry = {}
-		count = 0
+            cls.level.append([road.x1, road.y1, road.x2, road.y2])
+            cls.lanes.append(road.lanes)
+            cls.spawn_positions.append(road.spawn_ability)
+            cls.lights.append(Light(counter, road.red_time, road.green_time, road.tick))
 
-		self.minx, self.miny, self.maxx, self.maxy = 2147483647, 2147483647, 0, 0
+            if road.x1 < cls.min_x:
+                cls.min_x = road.x1
+            elif road.x2 < cls.min_x:
+                cls.min_x = road.x2
+            if road.y1 < cls.min_y:
+                cls.min_y = road.y1
+            elif road.y2 < cls.min_y:
+                cls.min_y = road.y2
 
-		for road in roads:
-			if road.covering in covers:
-				self.rtype.append(road.covering)
-			else:
-				self.rtype.append(0)
-			try:
-				carry[tuple({(road.x1, road.y1), (road.x2, road.y2)})] += road.lanes
-			except:
-				carry[tuple({(road.x1, road.y1), (road.x2, road.y2)})] = road.lanes
+            if road.x1 > cls.max_x:
+                cls.max_x = road.x1
+            elif road.x2 > cls.max_x:
+                cls.max_x = road.x2
+            if road.y1 > cls.max_y:
+                cls.max_y = road.y1
+            elif road.y2 > cls.max_y:
+                cls.max_y = road.y2
 
-			self.level.append([road.x1, road.y1, road.x2, road.y2])
-			self.lanes.append(road.lanes)
-			self.spawn.append(road.spawn)
-			self.lights.append(Light(count, road.red, road.green, road.tick))
+            counter += 1
 
-			if road.x1 < self.minx:
-				self.minx = road.x1
-			elif road.x2 < self.minx:
-				self.minx = road.x2
-			if road.y1 < self.miny:
-				self.miny = road.y1
-			elif road.y2 < self.miny:
-				self.miny = road.y2
+        counter = 0
 
-			if road.x1 > self.maxx:
-				self.maxx = road.x1
-			elif road.x2 > self.maxx:
-				self.maxx = road.x2
-			if road.y1 > self.maxy:
-				self.maxy = road.y1
-			elif road.y2 > self.maxy:
-				self.maxy = road.y2
-			count += 1
+        cls.locked_roads.clear()
+        for road in cls.level:
+            road_width = roads_width[
+                tuple({
+                    (road[0], road[1]),
+                    (road[2], road[3]),
+                })
+            ]
+            line_id = canvas.create_line(
+                *road,
+                fill=Settings.covers[cls.road_types[counter]][2],
+                width=road_width,
+                activefill=highlight_color(Settings.covers[cls.road_types[counter]][2]),
+            )
 
-		count = 0
-		self.locks.clear()
-		for road in self.level:
-			w = carry[tuple({(road[0], road[1]), (road[2], road[3])})]
-			o = c.create_line(*road, fill=covcol[self.rtype[count]], width=w, activefill=high(covcol[self.rtype[count]]))
-			exec("c.tag_bind(o, \"<Button-1>\", lambda e: lock(%s, %s))" % (count, o), {"c": c, "o": o, "lock": lock})
-			self.lines.append(o)
-			self.locks.append(0)
-			count += 1
+            exec(
+                "c.tag_bind(o, \"<Button-1>\", lambda e: lock(%s, %s))"
+                % (counter, line_id),
+                {"c": canvas, "o": line_id, "lock": lock_road}
+            )
 
-		for trigger in lib.Trigger.select():
-			self.triggers.append(Exe(trigger.name, trigger.ints))
+            cls.lines.append(line_id)
+            cls.locked_roads.append(0)
+            counter += 1
 
-		for light in self.lights:
-			light.init()
+        for trigger in lib.Trigger.select():
+            cls.triggers.append(ExecutableCommand(trigger.name, trigger.instructions))
 
-		self.home(None)
+        for light in cls.lights:
+            light.init()
 
-	@classmethod
-	def loads(self, roads):
-		self.new()
+        cls.goto_home(None)
 
-		for road in roads:
-			if road.covering in covers:
-				self.rtype.append(road.covering)
-			else:
-				self.rtype.append(0)
-			self.level.append([road.x1, road.y1, road.x2, road.y2])
+    @classmethod
+    def update_lines(cls):
+        for i in range(len(cls.lines)):
+            canvas.coords(cls.lines[i], *cls.road_coordinates(i))
 
-		count = 0
-		for road in self.level:
-			self.lines.append(c.create_line(*road, fill=covcol[self.rtype[count]]))
-			count += 1
+        cls.move_lines(*cls.position)
 
-	@classmethod
-	def update(self):
-		for i in range(len(self.lines)):
-		 	c.coords(self.lines[i], *self.road(i))
-		self.place(*self.pos)
+    @classmethod
+    def goto_home(cls, event):
+        for i in range(len(cls.lines)):
+            canvas.coords(cls.lines[i], *cls.road_coordinates(i))
 
-	@classmethod
-	def home(self, evt):
-		for i in range(len(self.lines)):
-			c.coords(self.lines[i], *self.road(i))
-		self.pos = [0, 0]
-		self.update()
+        cls.position = [0, 0]
+        cls.update_lines()
 
-	@classmethod
-	def press(self, evt):
-		self.start = evt.x, evt.y
+    @classmethod
+    def mouse_press(cls, event):
+        cls.start = event.x, event.y
 
-	@classmethod
-	def bmotion(self, evt):
-		self.place(evt.x - self.start[0], evt.y - self.start[1])
-		self.pos[0] += evt.x - self.start[0]
-		self.pos[1] += evt.y - self.start[1]
-		self.start = evt.x, evt.y
+    @classmethod
+    def hold_motion(cls, event):
+        cls.move_lines(event.x - cls.start[0], event.y - cls.start[1])
+        cls.position[0] += event.x - cls.start[0]
+        cls.position[1] += event.y - cls.start[1]
+        cls.start = event.x, event.y
 
-	@classmethod
-	def place(self, dx, dy):
-		for i in range(len(self.lines)):
-			c.move(self.lines[i], dx, dy)
-		for car in self.cars:
-			car.update()
+    @classmethod
+    def move_lines(cls, dx, dy):
+        for i in range(len(cls.lines)):
+            canvas.move(cls.lines[i], dx, dy)
+        for car in cls.cars:
+            car.update()
 
-	@classmethod
-	def down(self, evt):
-		self.scale /= 1.2
-		self.mpos = evt.x // System.scale, evt.y // System.scale
-		self.update()
+    @classmethod
+    def scale_down(cls, event):
+        cls.scale /= 1.2
+        cls.update_lines()
 
-	@classmethod
-	def up(self, evt):
-		self.scale *= 1.2
-		self.mpos = evt.x // System.scale, evt.y // System.scale
-		self.update()
+    @classmethod
+    def scale_up(cls, event):
+        cls.scale *= 1.2
+        cls.update_lines()
 
-	@classmethod
-	def reset(self, evt):
-		self.scale = 1
-		self.mpos = evt.x // System.scale, evt.y // System.scale
-		self.update()
+    @classmethod
+    def scale_reset(cls, event):
+        cls.scale = 1
+        cls.update_lines()
 
-	@classmethod
-	def road(self, index):
-		return (self.level[index][0] * self.scale,
-			self.level[index][1] * self.scale,
-			self.level[index][2] * self.scale,
-			self.level[index][3] * self.scale)
+    @classmethod
+    def road_coordinates(cls, road_id):
+        return (cls.level[road_id][0] * cls.scale,
+                cls.level[road_id][1] * cls.scale,
+                cls.level[road_id][2] * cls.scale,
+                cls.level[road_id][3] * cls.scale)
 
-	@classmethod
-	def get(self, x, y):
-		return self.pos[0] + x * self.scale, self.pos[1] + y * self.scale
+    @classmethod
+    def get_scaled_position(cls, x, y):
+        return cls.position[0] + x * cls.scale, cls.position[1] + y * cls.scale
 
-	@classmethod
-	def mouse(self, evt):
-		val = abs(evt.delta // 120)
-		if evt.delta > 0:
-			for t in range(val):
-				self.up(evt)
-		else:
-			for t in range(val):
-				self.down(evt)
+    @classmethod
+    def mouse_wheel(cls, event):
+        val = abs(event.delta // 120)
+        if event.delta > 0:
+            for t in range(val):
+                cls.scale_up(event)
+        else:
+            for t in range(val):
+                cls.scale_down(event)
 
-	@classmethod
-	def new(self):
-		self.clearcar()
-		for road in self.lines:
-			c.delete(road)
-		for light in self.lights:
-			c.delete(light.id)
-		self.lines = []
-		self.level = []
-		self.rtype = []
-		self.lights = []
-		self.lanes = []
-		self.spawn = []
-		for trigger in self.triggers:
-			tm.delete(0)
-		self.triggers = []
+    @classmethod
+    def reset_map(cls):
+        cls.remove_cars()
 
-	@classmethod
-	def open(self):
+        for road in cls.lines:
+            canvas.delete(road)
 
-		path = filedialog.askopenfilename(initialdir = "/", title = "Select file", filetypes = (("Data Bases", "*.db"),))
-		if path:
-			try:
-				self.load(path)
-				self.currentFile = path
-			except:
-				tkinter.messagebox.showerror(title="Oops!", message="File %s does not exist" % path)
-				#windll.user32.MessageBoxW(0, "File %s does not exist" % path, "Oops!", 0x10)
+        for light in cls.lights:
+            canvas.delete(light.id)
 
-	@classmethod
-	def save(self):
-		if self.currentFile:
-			try:
-				lib.saveFile(self.currentFile, self.level, self.rtype)
-			except:
-				tkinter.messagebox.showerror(title="Oops!", message="Couldn't write to file %s" % self.currentFile)
-				#windll.user32.MessageBoxW(0, "Couldn't write to file %s" % self.currentFile, "Oops!", 0x10)
+        for trigger in cls.triggers:
+            trigger_menu.delete(0)
 
-	@classmethod
-	def saveas(self):
-		path = filedialog.asksaveasfilename(initialdir = "/", title = "Select file", filetypes = (("Data Bases", "*.db"),))
-		if path:
-			try:
-				lib.saveFile(path, self.level, self.rtype)
-			except:
-				tkinter.messagebox.showerror(title="Oops!", message="Couldn't write to file %s" % path)
-				#windll.user32.MessageBoxW(0, "Couldn't write to file %s" % path, "Oops!", 0x10)
+        cls.lines, cls.level, cls.triggers, cls.rtype, cls.lights, cls.lanes, cls.spawn = [], [], [], [], [], [], []
 
-	@classmethod
-	def move(self):
-		for light in self.lights:
-			light.update()
-		root.update()
-		for car in self.cars:
-			car.move()
+    @classmethod
+    def open_db_file(cls):
 
-	@classmethod
-	def randcar(self):
-		mem = System.scale
-		System.scale = 1
-		
-		seq = []
-		for road in range(len(self.level)):
-			if self.spawn[road]:
-				seq.append(road)
+        path = filedialog.askopenfilename(
+            initialdir="/",
+            title="Select file",
+            filetypes=(
+                ("Data Bases", "*.db"),
+            )
+        )
+        if path:
+            try:
+                cls.load_db_file(path)
+                cls.currentFile = path
+            except:
+                messagebox.showerror(title="Oops!", message="File %s does not exist" % path)
 
-		if seq:
-			road = random.choice(seq)
-			speed = random.randint(6, 20)
+    @classmethod
+    def move_entities(cls):
+        for light in cls.lights:
+            light.update()
 
-			self.cars.append(Car(road, speed, colconv[selcolor.get()]))
-		System.scale = mem
+        for car in cls.cars:
+            car.move()
 
-	@classmethod
-	def spawncar(self):
-		mem = System.scale
-		System.scale = 1
+        root.update()
 
-		seq = []
-		for road in range(len(self.level)):
-			if self.spawn[road]:
-				seq.append(road)
+    @classmethod
+    def spawn_random_place_car(cls):
+        previous_scale = System.scale
+        System.scale = 1
 
-		if seq:
-			road = random.choice(seq)
-			speed = random.randint(6, 21)
+        sequence = []
+        for road in range(len(cls.level)):
+            if cls.spawn_positions[road]:
+                sequence.append(road)
 
-			self.cars.append(Car(road, speed, colconv[random.randrange(16)]))
-		System.scale = mem
+        if sequence:
+            road = random.choice(sequence)
+            speed = random.randint(6, 20)
 
-	@classmethod
-	def clearcar(self):
-		for car in self.cars:
-			car.destruct()
-		self.cars.clear()
+            cls.cars.append(
+                Car(
+                    road,
+                    speed,
+                    color_convert[
+                        selected_color.get()
+                    ],
+                )
+            )
 
-# scale root function
-def q(n):
-	return n * 3
+        System.scale = previous_scale
+
+    @classmethod
+    def spawn_concrete_place_car(cls):
+        previous_scale = System.scale
+        System.scale = 1
+
+        sequence = []
+        for road in range(len(cls.level)):
+            if cls.spawn_positions[road]:
+                sequence.append(road)
+
+        if sequence:
+            road = random.choice(sequence)
+            speed = random.randint(6, 21)
+
+            cls.cars.append(
+                Car(
+                    road,
+                    speed,
+                    color_convert[
+                        random.randrange(16)
+                    ]
+                )
+            )
+
+        System.scale = previous_scale
+
+    @classmethod
+    def remove_cars(cls):
+        for car in cls.cars:
+            car.destruct()
+
+        cls.cars.clear()
+
 
 # angle calculation functions
-def headx(x, y, dx, dy, qy):
-	if y == dy:
-		return y
-	return round((qy - y) * (dx - x) / (dy - y) + x)
+def head_x(x, y, dx, dy, qy):
+    if y == dy:
+        return y
 
-def heady(x, y, dx, dy, qx):
-	if x == dx:
-		return x
-	return round((qx - x) * (dy - y) / (dx - x) + y)
+    return round((qy - y) * (dx - x) / (dy - y) + x)
 
-# get number's sign
-def sign(n):
-	if n > 0:
-		return 1
-	elif n < 0:
-		return -1
-	return 0
+
+def head_y(x, y, dx, dy, qx):
+    if x == dx:
+        return x
+
+    return round((qx - x) * (dy - y) / (dx - x) + y)
+
+
+# get number's number_sign
+def number_sign(n):
+    if n > 0:
+        return 1
+    elif n < 0:
+        return -1
+    return 0
+
 
 # set lock to road
-def lock(i, o=None):
-	System.locks[i] = not System.locks[i]
+def lock_road(road_id, line_id=None):
+    System.locked_roads[road_id] = not System.locked_roads[road_id]
 
-	if not o:
-		o = System.lines[i]
+    if not line_id:
+        line_id = System.lines[road_id]
 
-	if System.locks[i]:
-		c.itemconfig(o, dash=[8, 8])
-	else:
-		c.itemconfig(o, dash=[])
+    if System.locked_roads[road_id]:
+        canvas.itemconfig(line_id, dash=[8, 8])
+    else:
+        canvas.itemconfig(line_id, dash=[])
+
 
 # target list
 target1 = [0, 0]
@@ -371,409 +378,412 @@ target6 = [0, 0]
 target7 = [0, 0]
 target8 = [0, 0]
 target9 = [0, 0]
-targeta = [0, 0]
+target10 = [0, 0]
+
 
 # car class
 class Car:
-	def __init__(self, index, mv, col):
-		self.mv = mv # to load
-		self.l = 0
-		self.v = 0
+    def __init__(self, road_id, max_velocity, color):
+        self.max_velocity = max_velocity  # to load
+        self.lane = 0
+        self.velocity = 0
 
-		self.pos = list(System.road(index)[0:2]) # to load
+        self.position = list(System.road_coordinates(road_id)[0:2])  # to load
 
-		self.id = c.create_oval(int(self.pos[0]) + System.pos[0] - q(System.scale),
-			int(self.pos[1]) + System.pos[1] - q(System.scale),
-			int(self.pos[0]) + System.pos[0] + q(System.scale),
-			int(self.pos[1]) + System.pos[1] + q(System.scale), fill="#%06x" % col)
+        self.id = canvas.create_oval(
+            int(self.position[0]) + System.position[0] - System.scale * 3,
+            int(self.position[1]) + System.position[1] - System.scale * 3,
+            int(self.position[0]) + System.position[0] + System.scale * 3,
+            int(self.position[1]) + System.position[1] + System.scale * 3, fill="#%06x" % color)
 
-		self.queue = index # to load
-		self.cm = covers[System.rtype[index]]
+        self.queue = road_id  # to load
+        self.current_max_velocity = Settings.covers[System.road_types[road_id]]
 
-	def update(self):
-		c.coords(self.id, int(self.pos[0]) * System.scale + System.pos[0] - q(System.scale),
-			int(self.pos[1]) * System.scale + System.pos[1] - q(System.scale),
-			int(self.pos[0]) * System.scale + System.pos[0] + q(System.scale),
-			int(self.pos[1]) * System.scale + System.pos[1] + q(System.scale))
+    def update_position(self):
+        canvas.coords(
+            self.id,
+            int(self.position[0]) * System.scale + System.position[0] - System.scale * 3,
+            int(self.position[1]) * System.scale + System.position[1] - System.scale * 3,
+            int(self.position[0]) * System.scale + System.position[0] + System.scale * 3,
+            int(self.position[1]) * System.scale + System.position[1] + System.scale * 3,
+        )
 
-	def move(self):
-		if self.cm > self.mv:
-			v = self.cm
-		else:
-			v = self.mv
-		if self.v >= v:
-			cd = System.level[self.queue]
-			if cd[2:4] != self.pos:
-				df = cd[0] - cd[2], cd[1] - cd[3]
+    def move_position(self):
+        if self.current_max_velocity > self.max_velocity:
+            bigger_velocity = self.current_max_velocity
+        else:
+            bigger_velocity = self.max_velocity
+        if self.velocity >= bigger_velocity:
+            coordinates = System.level[self.queue]
 
-				if abs(df[0]) >= abs(df[1]):
-					target1[0] = self.pos[0] - sign(df[0])
-					target1[1] = heady(*cd, target1[0])
+            if coordinates[2:4] != self.position:
+                difference = coordinates[0] - coordinates[2], coordinates[1] - coordinates[3]
 
-					target2[0] = self.pos[0] - sign(df[0]) * 2
-					target2[1] = heady(*cd, target2[0])
+                if abs(difference[0]) >= abs(difference[1]):
+                    target1[0] = self.position[0] - number_sign(difference[0])
+                    target1[1] = head_y(*coordinates, target1[0])
 
-					target3[0] = self.pos[0] - sign(df[0]) * 3
-					target3[1] = heady(*cd, target3[0])
+                    target2[0] = self.position[0] - number_sign(difference[0]) * 2
+                    target2[1] = head_y(*coordinates, target2[0])
 
-					target4[0] = self.pos[0] - sign(df[0]) * 4
-					target4[1] = heady(*cd, target4[0])
+                    target3[0] = self.position[0] - number_sign(difference[0]) * 3
+                    target3[1] = head_y(*coordinates, target3[0])
 
-					target5[0] = self.pos[0] - sign(df[0]) * 5
-					target5[1] = heady(*cd, target5[0])
+                    target4[0] = self.position[0] - number_sign(difference[0]) * 4
+                    target4[1] = head_y(*coordinates, target4[0])
 
-					target6[0] = self.pos[0] - sign(df[0]) * 6
-					target6[1] = heady(*cd, target6[0])
+                    target5[0] = self.position[0] - number_sign(difference[0]) * 5
+                    target5[1] = head_y(*coordinates, target5[0])
 
-					target7[0] = self.pos[0] - sign(df[0]) * 7
-					target7[1] = heady(*cd, target7[0])
+                    target6[0] = self.position[0] - number_sign(difference[0]) * 6
+                    target6[1] = head_y(*coordinates, target6[0])
 
-					target8[0] = self.pos[0] - sign(df[0]) * 8
-					target8[1] = heady(*cd, target8[0])
+                    target7[0] = self.position[0] - number_sign(difference[0]) * 7
+                    target7[1] = head_y(*coordinates, target7[0])
 
-					target9[0] = self.pos[0] - sign(df[0]) * 9
-					target9[1] = heady(*cd, target9[0])
+                    target8[0] = self.position[0] - number_sign(difference[0]) * 8
+                    target8[1] = head_y(*coordinates, target8[0])
 
-					targeta[0] = self.pos[0] - sign(df[0]) * 10
-					targeta[1] = heady(*cd, targeta[0])
+                    target9[0] = self.position[0] - number_sign(difference[0]) * 9
+                    target9[1] = head_y(*coordinates, target9[0])
 
-					m = 1
-					for car in System.cars:
-						if car == self:
-							continue
-						if car.queue == self.queue and car.l == self.l:
-							if car.pos == target1:
-								m = 0
-								break
-							elif car.pos == target2:
-								m = 0
-								break
-							elif car.pos == target3:
-								m = 0
-								break
-							elif car.pos == target4:
-								m = 0
-								break
-							elif car.pos == target5:
-								m = 0
-								break
-							elif car.pos == target6:
-								m = 0
-								break
-							elif car.pos == target7:
-								m = 0
-								break
-							elif car.pos == target8:
-								m = 0
-								break
-							elif car.pos == target9:
-								m = 0
-								break
-							elif car.pos == targeta:
-								m = 0
-								break
+                    target10[0] = self.position[0] - number_sign(difference[0]) * 10
+                    target10[1] = head_y(*coordinates, target10[0])
 
-					if m:
-						self.pos[0] = target1[0]
-						self.pos[1] = target1[1]
-					else:
-						self.l = (self.l + 1) % System.lanes[self.queue]
+                    wheel_move = 1
 
-				else:
-					target1[1] = self.pos[1] - sign(df[1])
-					target1[0] = headx(*cd, target1[1])
+                    for car in System.cars:
+                        if car == self:
+                            continue
+                        if car.queue == self.queue and car.lane == self.lane:
+                            if car.position == target1:
+                                m = 0
+                                break
+                            elif car.position == target2:
+                                m = 0
+                                break
+                            elif car.position == target3:
+                                m = 0
+                                break
+                            elif car.position == target4:
+                                m = 0
+                                break
+                            elif car.position == target5:
+                                m = 0
+                                break
+                            elif car.position == target6:
+                                m = 0
+                                break
+                            elif car.position == target7:
+                                m = 0
+                                break
+                            elif car.position == target8:
+                                m = 0
+                                break
+                            elif car.position == target9:
+                                m = 0
+                                break
+                            elif car.position == target10:
+                                m = 0
+                                break
 
-					target2[1] = self.pos[1] - sign(df[1]) * 2
-					target2[0] = headx(*cd, target2[1])
+                    if wheel_move:
+                        self.position[0] = target1[0]
+                        self.position[1] = target1[1]
+                    else:
+                        self.lane = (self.lane + 1) % System.lanes[self.queue]
 
-					target3[1] = self.pos[1] - sign(df[1]) * 3
-					target3[0] = headx(*cd, target3[1])
+                else:
+                    target1[1] = self.position[1] - number_sign(difference[1])
+                    target1[0] = head_x(*coordinates, target1[1])
 
-					target4[1] = self.pos[1] - sign(df[1]) * 4
-					target4[0] = headx(*cd, target4[1])
+                    target2[1] = self.position[1] - number_sign(difference[1]) * 2
+                    target2[0] = head_x(*coordinates, target2[1])
 
-					target5[1] = self.pos[1] - sign(df[1]) * 5
-					target5[0] = headx(*cd, target5[1])
+                    target3[1] = self.position[1] - number_sign(difference[1]) * 3
+                    target3[0] = head_x(*coordinates, target3[1])
 
-					target6[1] = self.pos[1] - sign(df[1]) * 6
-					target6[0] = headx(*cd, target6[1])
+                    target4[1] = self.position[1] - number_sign(difference[1]) * 4
+                    target4[0] = head_x(*coordinates, target4[1])
 
-					target7[1] = self.pos[1] - sign(df[1]) * 7
-					target7[0] = headx(*cd, target7[1])
+                    target5[1] = self.position[1] - number_sign(difference[1]) * 5
+                    target5[0] = head_x(*coordinates, target5[1])
 
-					target8[1] = self.pos[1] - sign(df[1]) * 8
-					target8[0] = headx(*cd, target8[1])
+                    target6[1] = self.position[1] - number_sign(difference[1]) * 6
+                    target6[0] = head_x(*coordinates, target6[1])
 
-					target9[1] = self.pos[1] - sign(df[1]) * 9
-					target9[0] = headx(*cd, target9[1])
+                    target7[1] = self.position[1] - number_sign(difference[1]) * 7
+                    target7[0] = head_x(*coordinates, target7[1])
 
-					targeta[1] = self.pos[1] - sign(df[1]) * 10
-					targeta[0] = headx(*cd, targeta[1])
+                    target8[1] = self.position[1] - number_sign(difference[1]) * 8
+                    target8[0] = head_x(*coordinates, target8[1])
 
-					m = 1
-					for car in System.cars:
-						if car == self:
-							continue
-						if car.queue == self.queue and car.l == self.l:
-							if car.pos == target1:
-								m = 0
-								break
-							elif car.pos == target2:
-								m = 0
-								break
-							elif car.pos == target3:
-								m = 0
-								break
-							elif car.pos == target4:
-								m = 0
-								break
-							elif car.pos == target5:
-								m = 0
-								break
-							elif car.pos == target6:
-								m = 0
-								break
-							elif car.pos == target7:
-								m = 0
-								break
-							elif car.pos == target8:
-								m = 0
-								break
-							elif car.pos == target9:
-								m = 0
-								break
-							elif car.pos == targeta:
-								m = 0
-								break
+                    target9[1] = self.position[1] - number_sign(difference[1]) * 9
+                    target9[0] = head_x(*coordinates, target9[1])
 
-					if m:
-						self.pos[0] = target1[0]
-						self.pos[1] = target1[1]
-					else:
-						self.l = (self.l + 1) % System.lanes[self.queue]
+                    target10[1] = self.position[1] - number_sign(difference[1]) * 10
+                    target10[0] = head_x(*coordinates, target10[1])
 
-			elif System.lights[self.queue].state:
-				seq = []
-				for i in range(len(System.level)):
-					if System.level[i][0:2] == cd[2:4] and System.locks[i] == 0:
-						seq.append(i)
+                    wheel_move = 1
 
-				if seq:
-					g = random.choice(seq)
-					self.queue = g
-					self.l = 0
-					self.cm = covers[System.rtype[g]]
-					self.v = 0
-			if self.v > 0:
-				self.v = 0
-			self.update()
-		else:
-			self.v += 1
+                    for car in System.cars:
+                        if car == self:
+                            continue
+                        if car.queue == self.queue and car.l == self.l:
+                            if car.position == target1:
+                                m = 0
+                                break
+                            elif car.position == target2:
+                                m = 0
+                                break
+                            elif car.position == target3:
+                                m = 0
+                                break
+                            elif car.position == target4:
+                                m = 0
+                                break
+                            elif car.position == target5:
+                                m = 0
+                                break
+                            elif car.position == target6:
+                                m = 0
+                                break
+                            elif car.position == target7:
+                                m = 0
+                                break
+                            elif car.position == target8:
+                                m = 0
+                                break
+                            elif car.position == target9:
+                                m = 0
+                                break
+                            elif car.position == target10:
+                                m = 0
+                                break
 
-	def save(self):
-		pass
+                    if wheel_move:
+                        self.position[0] = target1[0]
+                        self.position[1] = target1[1]
+                    else:
+                        self.lane = (self.lane + 1) % System.lanes[self.queue]
 
-	def load(self, obj):
-		pass
+            elif System.lights[self.queue].state:
+                sequence = []
 
-	def destruct(self):
-		c.delete(self.id)
+                for i in range(len(System.level)):
+                    if System.level[i][0:2] == coordinates[2:4] and System.locked_roads[i] == 0:
+                        sequence.append(i)
+
+                if sequence:
+                    rand = random.choice(sequence)
+
+                    self.queue = rand
+                    self.lane = 0
+                    self.current_max_velocity = Settings.covers[System.road_types[rand]][0]
+                    self.velocity = 0
+
+            if self.velocity > 0:
+                self.velocity = 0
+
+            self.update_position()
+        else:
+            self.velocity += 1
+
+    def destruct(self):
+        canvas.delete(self.id)
+
 
 # light class
 class Light:
-	def __init__(self, i, r, g, t):
-		self.pause = r * 16, g * 16
-		self.i = i
-		self.state = 0
-		self.t = t
+    def __init__(self, road_id, red_time, green_time, tick):
+        self.pause = red_time * 16, green_time * 16
+        self.road_id = road_id
+        self.state = 0
+        self.tick = tick
 
-	def init(self):
-		if self.t >= self.pause[1]:
-			self.id = c.create_oval(*self.loc(), fill="#00FF00")
-		else:
-			self.id = c.create_oval(*self.loc(), fill="#FF0000")
+    def init(self):
+        if self.tick >= self.pause[1]:
+            self.circle_id = canvas.create_oval(*self.location(), fill="#00FF00")
+        else:
+            self.circle_id = canvas.create_oval(*self.location(), fill="#FF0000")
 
-	def update(self):
-		if self.t >= self.pause[0] + self.pause[1]:
-			self.t = 0
-			self.state = 0
-			c.itemconfig(self.id, fill="#FF0000")
-		else:
-			self.t += 1
-			if self.t == self.pause[1]:
-				self.state = 1
-				c.itemconfig(self.id, fill="#00FF00")
-		c.coords(self.id, *self.loc())
+    def update_state(self):
+        if self.tick >= self.pause[0] + self.pause[1]:
+            self.tick = 0
+            self.state = 0
 
-	def loc(self):
-		x = System.pos[0] + System.level[self.i][2] * System.scale 
-		y = System.pos[1] + System.level[self.i][3] * System.scale
-		return x - System.scale * 5, y - System.scale * 5, x + System.scale * 5, y + System.scale * 5
+            canvas.itemconfig(self.circle_id, fill="#FF0000")
+        else:
+            self.tick += 1
+            if self.tick == self.pause[1]:
+                self.state = 1
 
-# menu
-menu = Menu(root)
-tm = Menu(menu, tearoff=0)
+                canvas.itemconfig(self.circle_id, fill="#00FF00")
 
-# trigger class
-class Exe:
-	def __init__(self, name, ints):
-		self.ints = ints.split(", ")
-		tm.add_command(label=name, command=self.run)
-	def run(self):
-		for line in self.ints:
-			line = line.split()
-			if line[0] == "clear":
-				System.clearcar()
-			elif line[0] == "spawncars":
-				for i in range(int(line[1])):
-					System.spawncar()
-			elif line[0] == "scale":
-				System.scale = float(line[1])
-				System.update()
-			elif line[0] == "delay":
-				time.sleep(int(line[1]) / 1000)
-			elif line[0] == "timestop":
-				timestop()
-			elif line[0] == "continue":
-				timeresume()
-			elif line[0] == "speed":
-				global pause
-				pause = int(line[1])
-			elif line[0] == "lock":
-				lock(int(line[1]))
+        canvas.coords(self.circle_id, *self.location())
 
-# null function
-def null(*args, **kwargs):
-	pass
+    def location(self):
+        x = System.position[0] + System.level[self.road_id][2] * System.scale
+        y = System.position[1] + System.level[self.road_id][3] * System.scale
+
+        return x - System.scale * 5, y - System.scale * 5, x + System.scale * 5, y + System.scale * 5
+
+
+class ExecutableCommand:
+    def __init__(self, name, instructions):
+        self.instructions = instructions.split(", ")
+
+        trigger_menu.add_command(label=name, command=self.run)
+
+    def run(self):
+        for line in self.instructions:
+            line = line.split()
+
+            if line[0] == "clear":
+                System.remove_cars()
+            elif line[0] == "spawncars":
+                for i in range(int(line[1])):
+                    System.spawn_concrete_place_car()
+            elif line[0] == "scale":
+                System.scale = float(line[1])
+                System.update_lines()
+            elif line[0] == "delay":
+                time.sleep(int(line[1]) / 1000)
+            elif line[0] == "timestop":
+                stop_time()
+            elif line[0] == "continue":
+                resume_time()
+            elif line[0] == "speed":
+                Settings.pause = int(line[1])
+            elif line[0] == "lock":
+                lock_road(int(line[1]))
+
 
 # terminate function
 def terminate():
-	global TERMINATE
-	TERMINATE = True
-	exit()
+    Settings.is_terminable = True
+    exit()
+
 
 # default speed function
-def defspeed():
-	global pause
-	pause = 240
+def default_speed():
+    Settings.pause = 240
 
-	speedmenu.entryconfigure(0, label="Speed: %s Ticks" % pause)
+    speed_menu.entryconfigure(0, label="Speed: %s Ticks" % Settings.pause)
+
 
 # increase speed function
-def incspeed(super=0):
-	global pause
+def increase_speed(boost=False):
+    if boost:
+        Settings.pause += 90
+    Settings.pause += 30
 
-	if super:
-		pause += 90
-	pause += 30
+    speed_menu.entryconfigure(0, label="Speed: %s Ticks" % Settings.pause)
 
-	speedmenu.entryconfigure(0, label="Speed: %s Ticks" % pause)
 
 # decrease speed function
-def decspeed(super=0):
-	global pause
+def decrease_speed(boost=False):
+    if boost:
+        Settings.pause -= 90
+    Settings.pause -= 30
 
-	if super:
-		pause -= 90
-	pause -= 30
+    if Settings.pause < 10:
+        Settings.pause = 10
 
-	if pause < 10:
-		pause = 10
+    speed_menu.entryconfigure(0, label="Speed: %s Ticks" % Settings.pause)
 
-	speedmenu.entryconfigure(0, label="Speed: %s Ticks" % pause)
 
 # fullscreen function
-def setFullscreen():
-	global FULLSCREEN
-	FULLSCREEN = not FULLSCREEN
-	root.attributes("-fullscreen", FULLSCREEN)
+def set_fullscreen():
+    Settings.is_fullscreen = not Settings.is_fullscreen
+    root.attributes("-fullscreen", Settings.is_fullscreen)
 
-	c.config(width=root.winfo_width(), height=root.winfo_height())
+    canvas.config(width=root.winfo_width(), height=root.winfo_height())
 
-# time functions
-def timestop():
-	global MOVE
-	MOVE = 0
 
 # time functions
-def timeresume():
-	global MOVE
-	MOVE = 1
+def stop_time():
+    Settings.is_moving = False
 
-# main loop setup
 
-# filemenu = Menu(menu, tearoff=0)
-# filemenu.add_command(label="New", command=System.new)
-# filemenu.add_command(label="Open", command=System.open)
-# filemenu.add_command(label="Save", command=System.save)
-# filemenu.add_command(label="Save As", command=System.saveas)
+# time functions
+def resume_time():
+    Settings.is_moving = True
 
-speedmenu = Menu(menu, tearoff=0)
-speedmenu.add_command(label="Speed: 240 Ticks")
-speedmenu.add_command(label="Default Speed", command=defspeed)
-speedmenu.add_separator()
-speedmenu.add_command(label="Time Stop", command=timestop)
-speedmenu.add_command(label="Time Resume", command=timeresume)
-speedmenu.add_separator()
-speedmenu.add_command(label="Speed Up", command=incspeed)
-speedmenu.add_command(label="Slow Down", command=decspeed)
-speedmenu.add_separator()
-speedmenu.add_command(label="Super Speed Up", command=lambda: incspeed(1))
-speedmenu.add_command(label="Super Slow Down", command=lambda: decspeed(1))
 
-carmenu = Menu(menu, tearoff=0)
-carsub = Menu(carmenu, tearoff=0)
-carcols = [
-	"Black", "Dark Gray", "Light Gray", "White",
-	"Red", "Dark Red", "Green", "Dark Green",
-	"Blue", "Dark Blue", "Yellow", "Orange",
-	"Pink", "Purple", "Light Blue", "Mint"
+speed_menu = Menu(menu, tearoff=0)
+speed_menu.add_command(label="Speed: 240 Ticks")
+speed_menu.add_command(label="Default Speed", command=default_speed)
+speed_menu.add_separator()
+speed_menu.add_command(label="Time Stop", command=stop_time)
+speed_menu.add_command(label="Time Resume", command=resume_time)
+speed_menu.add_separator()
+speed_menu.add_command(label="Speed Up", command=increase_speed)
+speed_menu.add_command(label="Slow Down", command=decrease_speed)
+speed_menu.add_separator()
+speed_menu.add_command(label="Super Speed Up", command=lambda: increase_speed(True))
+speed_menu.add_command(label="Super Slow Down", command=lambda: decrease_speed(True))
+
+car_menu = Menu(menu, tearoff=0)
+car_submenu = Menu(car_menu, tearoff=0)
+
+car_colors = [
+    "Black", "Dark Gray", "Light Gray", "White",
+    "Red", "Dark Red", "Green", "Dark Green",
+    "Blue", "Dark Blue", "Yellow", "Orange",
+    "Pink", "Purple", "Light Blue", "Mint"
 ]
-colconv = [
-	0x000000, 0x505050, 0xA0A0A0, 0xFFFFFF,
-	0xFF0000, 0xA00000, 0x00FF00, 0x00A000,
-	0x0000FF, 0x0000A0, 0xFFFF00, 0xFF8000,
-	0xFF40FF, 0xA000FF, 0x00FFFF, 0xC0FFEE
+
+color_convert = [
+    0x000000, 0x505050, 0xA0A0A0, 0xFFFFFF,
+    0xFF0000, 0xA00000, 0x00FF00, 0x00A000,
+    0x0000FF, 0x0000A0, 0xFFFF00, 0xFF8000,
+    0xFF40FF, 0xA000FF, 0x00FFFF, 0xC0FFEE
 ]
-selcolor = IntVar()
+
+selected_color = IntVar()
 count = 0
-for color in carcols:
-	carsub.add_radiobutton(label=color, value=count, variable=selcolor)
-	count += 1
-carmenu.add_cascade(label="Car Color", menu=carsub)
-carmenu.add_separator()
-carmenu.add_command(label="Add Car", command=System.randcar)
-carmenu.add_command(label="Remove All Cars", command=System.clearcar)
 
-menu.add_command(label="File", command=System.open)
-menu.add_cascade(label="Speed", menu=speedmenu)
-menu.add_cascade(label="Cars", menu=carmenu)
-menu.add_cascade(label="Triggers", menu=tm)
-menu.add_command(label="FullScreen", command=setFullscreen)
+for color in car_colors:
+    car_submenu.add_radiobutton(label=color, value=count, variable=selected_color)
+    count += 1
+
+car_menu.add_cascade(label="Car Color", menu=car_submenu)
+car_menu.add_separator()
+car_menu.add_command(label="Add Car", command=System.spawn_random_place_car)
+car_menu.add_command(label="Remove All Cars", command=System.remove_cars)
+
+menu.add_command(label="File", command=System.open_db_file)
+menu.add_cascade(label="Speed", menu=speed_menu)
+menu.add_cascade(label="Cars", menu=car_menu)
+menu.add_cascade(label="Triggers", menu=trigger_menu)
+menu.add_command(label="FullScreen", command=set_fullscreen)
 menu.add_command(label="Exit", command=terminate)
 
-root.bind_all("<Prior>", System.up)
-root.bind_all("<Next>", System.down)
-root.bind_all("<Home>", System.reset)
-root.bind_all("<End>", System.home)
+root.bind_all("<Prior>", System.scale_up)
+root.bind_all("<Next>", System.scale_down)
+root.bind_all("<Home>", System.scale_reset)
+root.bind_all("<End>", System.goto_home)
 
-root.bind_all("<MouseWheel>", System.mouse)
-root.bind_all("<Button-1>", System.press)
-root.bind_all("<B1-Motion>", System.bmotion)
+root.bind_all("<MouseWheel>", System.mouse_wheel)
+root.bind_all("<Button-1>", System.mouse_press)
+root.bind_all("<B1-Motion>", System.hold_motion)
 
-c.pack()
+canvas.pack()
+
+
 # ============================
-# System.load("tour.db")
+System.load_db_file(os.getenv("DEFAULT_DB_FILE_NAME"))
 # System.cars.append(Car(0, 20, 0xffffff))
 # System.cars.append(Car(1, 10, 0x000000))
 # ============================
 
 def loop():
-	global pause
-	while not TERMINATE:
-		if MOVE:
-			System.move()
-		clock.tick(pause)
+    while not Settings.is_terminable:
+        if Settings.is_moving:
+            System.move_entities()
+        clock.tick(Settings.pause)
+
 
 thread = threading.Thread(target=loop)
 thread.start()
